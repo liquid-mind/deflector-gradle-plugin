@@ -1,29 +1,35 @@
 package ch.liquidmind.deflector.plugin
+
+import org.gradle.api.artifacts.Dependency
+
 import java.util.regex.Pattern
 
 /**
  * Created by sebastian on 22/05/15.
  */
 class DeflectOption {
+    // Map of Key: --<option> Value: 'someparameter'
     private options = [:]
 
-    void jar(String jar) {
-        options['--jar'] = jar
+    // Notation of original dependency
+    def originalDependency
+
+    def getJarPath() {
+        return options['--jar']
     }
 
-    void includes(Object includes) {
-        options['--includes'] = includes.toString()
+    def getClasspath() {
+        return options['--classpath']
     }
 
-    void excludes(Object excludes) {
-        options['--excludes'] = excludes.toString()
+    // Used to add options
+    // Adds a --<methodname> <param> option
+    // when calling any undefined method on this class
+    def methodMissing(String name, args) {
+        options['--' + name] = args[0]
     }
 
-    void classpath(String classpath) {
-        options['--classpath'] = classpath
-    }
-
-
+    // Returns array version of the options map
     def getDeflectorArgs() {
         def args = []
         options.each { k,v ->
