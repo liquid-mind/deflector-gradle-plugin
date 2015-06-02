@@ -11,8 +11,19 @@ class DeflectOption {
     // Map of Key: --<option> Value: 'someparameter'
     private options = [:]
 
-    // Notation of original dependency
+    // Notation of original dependency (e.g. 'org.apache.derby:derby:10.11.1.1' )
     def originalDependency
+
+    // List of dependency notations on which the deflection of this jar depends
+    def dependsOn = []
+
+    public dependsOn(String... notations) {
+        notations.each {
+            dependsOn << it
+        }
+    }
+
+
 
     def getJarPath() {
         return options['--jar']

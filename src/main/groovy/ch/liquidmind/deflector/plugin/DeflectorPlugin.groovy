@@ -3,6 +3,8 @@ package ch.liquidmind.deflector.plugin
 import org.gradle.api.Project
 import org.gradle.api.Plugin
 import ch.liquidmind.deflector.Main
+import org.gradle.api.artifacts.ResolvedArtifact
+import org.gradle.api.artifacts.ResolvedDependency
 
 class DeflectorPlugin implements Plugin<Project>
 {
@@ -56,6 +58,22 @@ class DeflectorPlugin implements Plugin<Project>
                 if (!outputDir.exists())
                     outputDir.mkdir()
 
+                def printResolvedDependency
+                printResolvedDependency = { int level, ResolvedDependency dep ->
+                    println "  ".multiply(level) + dep.module.id
+                    //println " ".multiply(level*2) + dep.getModuleGroup() + ":" + dep.getModuleName() + ":" + dep.getModuleVersion()
+                    //dep.moduleArtifacts.each {
+                    //    println "  ".multiply(level) + it.file.name
+                    //}
+                    dep.children.unique{ d -> d.module.id  }.each { ResolvedDependency dep2 ->
+                        printResolvedDependency(level+1, dep2)
+                    }
+                }
+
+                project.configurations.runtime.getResolvedConfiguration().firstLevelModuleDependencies.each { ResolvedDependency dep ->
+                    printResolvedDependency(0, dep)
+                }
+
                 jarsToDeflect.each { DeflectOption opt ->
                     // If option has no jar defined, find it by searching
                     // existing runtime dependencies
@@ -73,6 +91,16 @@ class DeflectorPlugin implements Plugin<Project>
                         opt.classpath(deflectorClasspaths.join(":"))
                     }
 
+                    //test:
+                    println opt.dependsOn
+                    opt.dependsOn.collect() { String notation
+                        project.configurations.runtime.getResolvedConfiguration().firstLevelModuleDependencies.find {
+                            it.module.id ==
+                        }.getArtifacts().collect() {
+                            it.file
+                        }
+                    }
+
                     // Add output folder option
                     opt.output(project.deflector.deflectedJarsPath)
 
@@ -83,7 +111,6 @@ class DeflectorPlugin implements Plugin<Project>
 
                     // Create deflect task
                     def taskName = originalJar.getName()
-                    println "creating task ${taskName}"
                     def deflectTask = project.tasks.create(name: taskName, type: DeflectTask) {
                         options = opt
                         inputs.file originalJar
