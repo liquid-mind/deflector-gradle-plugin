@@ -30,12 +30,12 @@ class DeflectOption {
     }
 
     // Returns array version of the options map
-    def getDeflectorArgs() {
+    def String[] getDeflectorArgs() {
         def args = []
         options.each { k,v ->
             args << k
             args << v
         }
-        return args
+        return args as String[]
     }
 }
