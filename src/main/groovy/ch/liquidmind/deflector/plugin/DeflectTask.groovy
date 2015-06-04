@@ -13,7 +13,7 @@ public class DeflectTask extends DefaultTask {
         if (options != null) {
             deflectorMain.main(options.getDeflectorArgs());
         } else {
-            println "No options set for deflect task '${this.name}'."
+            println "No nativeDeflectorOptions set for deflect task '${this.name}'."
         }
     }
 }

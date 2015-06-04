@@ -2,31 +2,23 @@ package ch.liquidmind.deflector.plugin
 
 import org.gradle.api.Project
 import org.gradle.api.Plugin
-import ch.liquidmind.deflector.Main
-import org.gradle.api.artifacts.ResolvedArtifact
-import org.gradle.api.artifacts.ResolvedDependency
+import org.gradle.api.Task
 
 class DeflectorPlugin implements Plugin<Project>
 {
     private Project project
-    private jarsToDeflect = []
-    private outputDir
+    private Map<String, DeflectOption> jarsToDeflect = [:]
+    private File outputDir
+    private deflectTasks = [:]
+    private rtJarFile = new File(System.env.'JAVA_HOME' + '/jre/lib/rt.jar')
 
 	void apply(Project project)
 	{
+        // TODO: Check rtJARFile != null
+
         this.project = project
 
-        // Create extension point for user input. This is used for
-        // general deflector settings such as the output path for
-        // deflected jars.
-        project.extensions.create("deflector", DeflectorExtension)
-
-        // Add the __rt.jar deflect option
-        def rtOption = new DeflectOption()
-        rtOption.jar(System.env.'JAVA_HOME' + '/jre/lib/rt.jar')
-        rtOption.includes(~/java\..* javax\..* org\.ietf\..* org\.omg\..* org\.w3c\..* org\.xml\..*/)
-        rtOption.excludes(~/javax\.smartcardio\..* org\.omg\.stub\.javax\..* java\.awt\.peer\..*/)
-        jarsToDeflect << rtOption
+        outputDir = new File(project.buildDir, "deflected-libs")
 
         // Extend the buildScript dependency notation with a deflected() option
         extendDependencyNotation()
@@ -35,13 +27,17 @@ class DeflectorPlugin implements Plugin<Project>
             // Add the output dir  as a repository
             project.repositories {
                 flatDir {
-                    dir project.deflector.deflectedJarsPath
+                    dir outputDir.absolutePath
                 }
             }
 
+            // Create the output dir if it does not exist
+            if (!outputDir.exists())
+                outputDir.mkdirs()
+
             // Add all all jars from the output dir as dependencies
             project.dependencies {
-                compile project.fileTree(dir: project.deflector.deflectedJarsPath, include: '*.jar')
+                compile project.fileTree(dir: outputDir.absolutePath, include: '*.jar')
             }
 
             // The deflect task
@@ -49,90 +45,93 @@ class DeflectorPlugin implements Plugin<Project>
                 // Make the compileJava task dependend on the deflectAll task
                 project.tasks.compileJava.dependsOn project.tasks.deflectAll
 
-                // Here we create all the deflect tasks that this task will depend on
-                def deflectorClasspaths = []
-                def deflectTasks = [:]
+                // Add the RT deflect config
+                def rtDeflectOption = new DeflectOption()
+                rtDeflectOption.jar(rtJarFile.absolutePath)
+                rtDeflectOption.includes(~/java\..* javax\..* org\.ietf\..* org\.omg\..* org\.w3c\..* org\.xml\..*/)
+                rtDeflectOption.excludes(~/javax\.smartcardio\..* org\.omg\.stub\.javax\..* java\.awt\.peer\..*/)
+                rtDeflectOption.output(outputDir.absolutePath)
+                jarsToDeflect['rt.jar'] = rtDeflectOption
 
-                // Create the output dir
-                outputDir = new File(project.projectDir, project.deflector.deflectedJarsPath)
-                if (!outputDir.exists())
-                    outputDir.mkdir()
+                // Create a new deflect task for each jar that we want to deflect
+                jarsToDeflect.each { String jarName, DeflectOption opt ->
+                    def File    inputJarFile
+                    def File    outputJarFile
+                    def classpath = []
 
-                def printResolvedDependency
-                printResolvedDependency = { int level, ResolvedDependency dep ->
-                    println "  ".multiply(level) + dep.module.id
-                    //println " ".multiply(level*2) + dep.getModuleGroup() + ":" + dep.getModuleName() + ":" + dep.getModuleVersion()
-                    //dep.moduleArtifacts.each {
-                    //    println "  ".multiply(level) + it.file.name
-                    //}
-                    dep.children.unique{ d -> d.module.id  }.each { ResolvedDependency dep2 ->
-                        printResolvedDependency(level+1, dep2)
-                    }
-                }
-
-                project.configurations.runtime.getResolvedConfiguration().firstLevelModuleDependencies.each { ResolvedDependency dep ->
-                    printResolvedDependency(0, dep)
-                }
-
-                jarsToDeflect.each { DeflectOption opt ->
-                    // If option has no jar defined, find it by searching
-                    // existing runtime dependencies
-                    if (!opt.getJarPath()) {
-                        def (group, name, version) = opt.originalDependency.split(":")
-                        def jarPath = project.configurations.runtime.find {
-                            it.absolutePath.matches(~/.*${group}.*${name}.*${version}.*\.jar/)
-                        }
-                        opt.jar(jarPath.getAbsolutePath())
-                    }
-                    deflectorClasspaths << opt.getJarPath()
-
-                    // If classpath was not specified, take classpath off all previous jars
-                    if (!opt.getClasspath() && deflectorClasspaths.size() > 0) {
-                        opt.classpath(deflectorClasspaths.join(":"))
+                    // Get the input jar file from either the 'jar' option given by the user or from
+                    // finding the jar in the runtime dependencies via maven notation
+                    if (!opt.getDeflectorOption('jar')) {
+                        inputJarFile = getJarFromMavenNotation(jarName)
+                        // TODO check if found
+                        opt.jar(inputJarFile.absolutePath)
+                    } else {
+                        inputJarFile = new File(opt.getDeflectorOption('jar'))
+                        // TODO check if it exists
                     }
 
-                    //test:
-                    println opt.dependsOn
-                    opt.dependsOn.collect() { String notation
-                        project.configurations.runtime.getResolvedConfiguration().firstLevelModuleDependencies.find {
-                            it.module.id ==
-                        }.getArtifacts().collect() {
-                            it.file
+                    outputJarFile = new File(new File(opt.getDeflectorOption('output')), "__" + inputJarFile.getName())
+
+                    // rt.jar is hard dependency for every user defined jar
+                    if (jarName != "rt.jar")
+                        classpath << new File(outputDir, "__rt.jar").absolutePath
+
+                    opt.dependsOn.each { String mavenNotation ->
+                        def (String group, String name, String version) = mavenNotation.split(":")
+                        // Add non-deflected jar to classpath
+                        classpath << getJarFromMavenNotation(mavenNotation).absolutePath
+                        // If there is a deflected version of this, add it to the classpath
+                        // TODO
+                        classpath << new File(outputDir, "__" + name + "-" + version + ".jar").absolutePath
+                    }
+
+                    // Set deflector classpath option or extend it
+                    if (classpath.size() > 0) {
+                        if (!opt.getDeflectorOption('classpath')) {
+                            opt.classpath(classpath.join(":"))
+                        } else {
+                            opt.classpath(opt.getDeflectorOption('classpath') + ":" + classpath.join(":"))
                         }
                     }
 
-                    // Add output folder option
-                    opt.output(project.deflector.deflectedJarsPath)
-
-                    // Remember classpath of the soon to be deflected jar file
-                    def originalJar = new File(opt.getJarPath())
-                    def outputJarPath = new File(outputDir, "__" + originalJar.getName()).getAbsolutePath()
-                    deflectorClasspaths << outputJarPath
-
-                    // Create deflect task
-                    def taskName = originalJar.getName()
-                    def deflectTask = project.tasks.create(name: taskName, type: DeflectTask) {
+                    // Create deflect task for this jar
+                    def deflectTask = project.tasks.create(name: jarName, type: DeflectTask) {
                         options = opt
-                        inputs.file originalJar
-                        outputs.file outputJarPath
+
+                        // For up-to-date comparison:
+                        inputs.file inputJarFile
+                        outputs.file outputJarFile
                     }
 
-                    // This task depends on all previous deflect tasks
-                    // until option is added to configure
-                    // dependencies on each other by the user
-                    deflectTasks.values().each {
-                        deflectTask.dependsOn it
-                    }
-                    deflectTasks[taskName] = deflectTask
+                    deflectTasks[jarName] = deflectTask
 
-                    // ... and make the deflect All task dependend on it
+                    // ... and make the deflectAll task dependent on it
                     project.tasks.deflectAll.dependsOn deflectTask
-
                 }
 
+                // Set dependencies between tasks
+                jarsToDeflect.each { String dependencyName, DeflectOption opt ->
+                    Task task =  project.tasks[dependencyName]
+                    if (dependencyName != 'rt.jar') task.dependsOn deflectTasks['rt.jar']
+                    opt.dependsOn.each { String mavenNotation ->
+                        Task targetTask = deflectTasks[mavenNotation]
+                        if (targetTask)
+                            task.dependsOn targetTask
+                    }
+                }
             }
+
         }
     }
+
+    private File getJarFromMavenNotation(String mavenNotation)
+    {
+        def (group, name, version) = mavenNotation.split(":")
+        return project.configurations.runtime.find {
+            it.absolutePath.matches(~/.*${group}.*${name}.*${version}.*\.jar/)
+        }
+    }
+
 
     /**
      * Extend dependency notation in the build script with a
@@ -155,12 +154,14 @@ class DeflectorPlugin implements Plugin<Project>
      * }
      */
     private void extendDependencyNotation() {
-        project.dependencies.ext.deflected = { original, Closure options = null ->
+        project.dependencies.ext.deflected = { String original, Closure options = null ->
             def (group, name, version) = original.split(":")
 
-            // Generate the options for the deflect task
+            // Generate the nativeDeflectorOptions for the deflect task
             def deflectOption = new DeflectOption()
-            deflectOption.originalDependency = original
+
+            // Set output folder
+            deflectOption.output(outputDir.absolutePath)
 
             // Run the provided option closure against the DeflectOption object
             if (options) {
@@ -169,11 +170,11 @@ class DeflectorPlugin implements Plugin<Project>
                 options()
             }
 
-            // Add the options Object to the list of jarsToDeflect
-            jarsToDeflect << deflectOption
+            // Add the nativeDeflectorOptions Object to the map of jarsToDeflect
+            jarsToDeflect[original] = deflectOption
 
             // Return the 'original' dependency, so that it will be added
-            // as dependency
+            // as dependency by gradle
             return original
         }
     }
