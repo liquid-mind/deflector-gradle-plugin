@@ -150,6 +150,7 @@ class DeflectorPlugin implements Plugin<Project>
      *                              includes ~/com\..* /
      *                              excludes ~//
      *                              classpath 'some.classpath'
+     *                              dependsOn 'com.google:something:1.0.0','asdf'
      *                          } )
      * }
      */
