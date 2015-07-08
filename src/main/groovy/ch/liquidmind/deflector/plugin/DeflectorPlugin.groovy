@@ -14,7 +14,8 @@ class DeflectorPlugin implements Plugin<Project>
 
 	void apply(Project project)
 	{
-        // TODO: Check rtJARFile != null
+        if ( !rtJarFile.exists() )
+            throw new FileNotFoundException( "Couldn't find rt.jar. Is The system variable JAVA_HOME set?")
 
         this.project = project
 
