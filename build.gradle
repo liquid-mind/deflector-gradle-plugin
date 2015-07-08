@@ -1,12 +1,21 @@
-apply plugin: 'groovy'
-apply plugin: 'maven'
-apply plugin: 'idea'
+plugins {
+    id "groovy"
+    id "maven-publish"
+    id "eclipse"
+    id "idea"
+    id "com.jfrog.bintray" version "1.2"
+}
 
-group = 'ch.liquidmind'
+group = 'ch.liquidmind.deflector'
 version = '0.0.1'
 
+jar {
+    from ("./LICENSE") {
+        into "META-INF"
+    }
+}
+
 repositories {
-    mavenLocal()
     mavenCentral()
 }
 
@@ -14,7 +23,73 @@ dependencies {
     compile gradleApi()
     compile localGroovy()
     compile 'ch.liquidmind:deflector:0.0.1'
-    testCompile 'junit:junit:4.12'
 }
 
+// Sources JAR
+task sourceJar(type: Jar, dependsOn: classes) {
+    from sourceSets.main.allSource
+}
 
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+
+            artifact sourceJar {
+                classifier "sources"
+            }
+
+            pom.withXml {
+                def root = asNode()
+                root.appendNode('name',
+                                    'ch.liquidmind:deflector-gradle-plugin')
+                root.appendNode('description',
+                                    'Gradle plugin for deflector. Turns checked exceptions into runtime exceptions by generating wrapper classes for arbitrary APIs in Java.')
+                root.appendNode('url',
+                                    'http://www.liquidmind.ch/')
+
+                def license = root.appendNode('licenses').appendNode('license')
+                license.appendNode('name', 'The Apache License, Version 2.0')
+                license.appendNode('url', 'http://www.apache.org/licenses/LICENSE-2.0.txt')
+
+                def scm = root.appendNode('scm')
+                scm.appendNode('connection', 'scm:git:git@github.com:liquid-mind/deflector-gradle-plugin.git')
+                scm.appendNode('developerConnection', 'scm:git:git@github.com:liquid-mind/deflector-gradle-plugin.git')
+                scm.appendNode('url', 'git@github.com:liquid-mind/deflector.git')
+
+                def developers = root.appendNode('developers')
+                
+                def brsh = developers.appendNode('developer')
+                brsh.appendNode('name', 'John Brush')
+                brsh.appendNode('email', 'brsh@zhaw.ch')
+                brsh.appendNode('organization', 'Liquidmind')
+                brsh.appendNode('organizationUrl', 'http://www.liquidmind.ch')
+
+                def stpn = developers.appendNode('developer')
+                stpn.appendNode('name', 'Sebastian Stephan')
+                stpn.appendNode('email', 'stpn@zhaw.ch')
+                stpn.appendNode('organization', 'Liquidmind')
+                stpn.appendNode('organizationUrl', 'http://www.liquidmind.ch')
+            }
+
+        }
+    }
+}
+
+bintray {
+        publications = ['mavenJava']
+        dryRun = false
+        publish = false
+        user=BINTRAY_USER
+        key=BINTRAY_API_KEY
+        pkg {
+            repo = 'maven'
+            name = 'deflector-gradle-plugin'
+            version {
+                gpg {
+                    sign = true
+                    passphrase=BINTRAY_GPG_PASS
+                }
+            }
+        }
+}
