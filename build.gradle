@@ -7,7 +7,7 @@ plugins {
 }
 
 group = 'ch.liquidmind.deflector'
-version = '0.0.1'
+version = '0.0.2'
 
 jar {
     from ("./LICENSE") {
