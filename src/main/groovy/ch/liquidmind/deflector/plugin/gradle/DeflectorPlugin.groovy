@@ -1,4 +1,4 @@
-package ch.liquidmind.deflector.plugin
+package ch.liquidmind.deflector.plugin.gradle
 
 import org.gradle.api.Project
 import org.gradle.api.Plugin

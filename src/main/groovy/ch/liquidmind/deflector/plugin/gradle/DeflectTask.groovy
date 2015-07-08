@@ -1,4 +1,4 @@
-package ch.liquidmind.deflector.plugin
+package ch.liquidmind.deflector.plugin.gradle
 
 import ch.liquidmind.deflector.Main
 import org.gradle.api.DefaultTask

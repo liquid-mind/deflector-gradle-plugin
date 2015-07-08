@@ -1,4 +1,4 @@
-package ch.liquidmind.deflector.plugin
+package ch.liquidmind.deflector.plugin.gradle
 
 /**
  * Created by sebastian on 22/05/15.
