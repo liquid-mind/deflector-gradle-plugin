@@ -79,10 +79,11 @@ class DeflectorPlugin implements Plugin<Project>
 
                     opt.dependsOn.each { String mavenNotation ->
                         def (String group, String name, String version) = mavenNotation.split(":")
+
                         // Add non-deflected jar to classpath
                         classpath << getJarFromMavenNotation(mavenNotation).absolutePath
+
                         // If there is a deflected version of this, add it to the classpath
-                        // TODO
                         classpath << new File(outputDir, "__" + name + "-" + version + ".jar").absolutePath
                     }
 
