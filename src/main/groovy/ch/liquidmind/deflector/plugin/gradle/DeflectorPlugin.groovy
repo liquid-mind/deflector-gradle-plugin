@@ -14,7 +14,8 @@ class DeflectorPlugin implements Plugin<Project>
 
 	void apply(Project project)
 	{
-        // TODO: Check rtJARFile != null
+        if ( !rtJarFile.exists() )
+            throw new FileNotFoundException( "Couldn't find rt.jar. Is The system variable JAVA_HOME set?")
 
         this.project = project
 
@@ -78,10 +79,11 @@ class DeflectorPlugin implements Plugin<Project>
 
                     opt.dependsOn.each { String mavenNotation ->
                         def (String group, String name, String version) = mavenNotation.split(":")
+
                         // Add non-deflected jar to classpath
                         classpath << getJarFromMavenNotation(mavenNotation).absolutePath
+
                         // If there is a deflected version of this, add it to the classpath
-                        // TODO
                         classpath << new File(outputDir, "__" + name + "-" + version + ".jar").absolutePath
                     }
 
@@ -127,9 +129,11 @@ class DeflectorPlugin implements Plugin<Project>
     private File getJarFromMavenNotation(String mavenNotation)
     {
         def (group, name, version) = mavenNotation.split(":")
-        return project.configurations.runtime.find {
-            it.absolutePath.matches(~/.*${group}.*${name}.*${version}.*\.jar/)
+        def jar =project.configurations.runtime.find {
+            it.name.equals(name + '-' + version + '.jar')
         }
+        if (!jar) throw new RuntimeException("Could not find jar of ${mavenNotation}.")
+        return jar
     }
 
 
@@ -150,7 +154,8 @@ class DeflectorPlugin implements Plugin<Project>
      *                              includes ~/com\..* /
      *                              excludes ~//
      *                              classpath 'some.classpath'
-     *                              dependsOn 'com.google:something:1.0.0','asdf'
+     *                              dependsOn   'com.google:something:1.0.0',
+     *                                          '...'
      *                          } )
      * }
      */
