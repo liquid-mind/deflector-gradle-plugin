@@ -129,9 +129,11 @@ class DeflectorPlugin implements Plugin<Project>
     private File getJarFromMavenNotation(String mavenNotation)
     {
         def (group, name, version) = mavenNotation.split(":")
-        return project.configurations.runtime.find {
-            it.absolutePath.matches(~/.*${group}.*${name}.*${version}.*\.jar/)
+        def jar =project.configurations.runtime.find {
+            it.name.equals(name + '-' + version + '.jar')
         }
+        if (!jar) throw new RuntimeException("Could not find jar of ${mavenNotation}.")
+        return jar
     }
 
 
