@@ -33,10 +33,7 @@ class DeflectOption {
         def args = []
         nativeDeflectorOptions.each { k, v ->
             args << k
-            v = v as String
-            v.split(" ").each { String part ->
-                args << part
-            }
+            args << "\"${v}\""
         }
         return args as String[]
     }
