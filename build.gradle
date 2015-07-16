@@ -4,6 +4,7 @@ plugins {
     id "eclipse"
     id "idea"
     id "com.jfrog.bintray" version "1.2"
+	id "com.gradle.plugin-publish" version "0.9.1"
 }
 
 group = 'ch.liquidmind.deflector'
@@ -16,6 +17,7 @@ jar {
 }
 
 repositories {
+	jcenter()
     mavenCentral()
 }
 
@@ -30,6 +32,22 @@ task sourceJar(type: Jar, dependsOn: classes) {
     from sourceSets.main.allSource
 }
 
+// Gradle plugin puload
+pluginBundle {
+  website = 'http://www.liquidmind.ch/'
+  vcsUrl = 'https://github.com/liquid-mind/deflector-gradle-plugin'
+  description = 'Turns checked exceptions into runtime exceptions by generating wrapper classes for arbitrary APIs in Java.'
+  tags = ['java', 'excpetion', 'exceptions']
+
+  plugins {
+    greetingsPlugin {
+      id = 'ch.liquidmind.deflector'
+      displayName = 'Deflector Gradle Plugin'
+    }
+  }
+}
+
+// Maven Publishing
 publishing {
     publications {
         mavenJava(MavenPublication) {
@@ -76,6 +94,7 @@ publishing {
     }
 }
 
+// Bintray upload
 bintray {
         publications = ['mavenJava']
         dryRun = false
