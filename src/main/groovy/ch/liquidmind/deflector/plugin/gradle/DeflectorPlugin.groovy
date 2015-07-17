@@ -95,11 +95,18 @@ class DeflectorPlugin implements Plugin<Project>
                     // Create deflect task for this jar
                     def deflectTask = project.tasks.create(name: jarName, type: DeflectTask) {
                         options = opt
-                        outputDir = outputDir
+                        outputDir = this.outputDir
 
                         // For up-to-date comparison:
                         inputs.file inputJarFile
                         outputs.file outputJarFile
+                        outputs.upToDateWhen {
+                            outputs.files.each {
+                                if (!it.exists())
+                                    return false
+                            }
+                            return true
+                        }
                     }
 
                     deflectTasks[jarName] = deflectTask
