@@ -5,15 +5,23 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.TaskAction
 
 public class DeflectTask extends DefaultTask {
-    Main deflectorMain = new Main();
-    DeflectOption options;
+    Main deflectorMain = new Main()
+    DeflectOption options
+    File outputDir
 
     @TaskAction
     run() {
-        if (options != null) {
-            deflectorMain.main(options.getDeflectorArgs());
-        } else {
-            println "No nativeDeflectorOptions set for deflect task '${this.name}'."
-        }
+        if (options == null)
+            throw InvalidUserDataException("No nativeDeflectorOptions set for deflect task '${this.name}'.")
+
+        if (outputDir == null)
+            throw InvalidUserDataException("No output directory set for deflect task '${this.name}'.")
+
+        // Create folder structure
+        outputDir.mkdirs()
+
+        // Run deflector by calling main()
+        deflectorMain.main(options.getDeflectorArgs());
+
     }
 }

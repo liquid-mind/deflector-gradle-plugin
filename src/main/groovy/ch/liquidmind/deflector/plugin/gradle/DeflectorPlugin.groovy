@@ -32,10 +32,6 @@ class DeflectorPlugin implements Plugin<Project>
                 }
             }
 
-            // Create the output dir if it does not exist
-            if (!outputDir.exists())
-                outputDir.mkdirs()
-
             // Add all all jars from the output dir as dependencies
             project.dependencies {
                 compile project.fileTree(dir: outputDir.absolutePath, include: '*.jar')
@@ -99,6 +95,7 @@ class DeflectorPlugin implements Plugin<Project>
                     // Create deflect task for this jar
                     def deflectTask = project.tasks.create(name: jarName, type: DeflectTask) {
                         options = opt
+                        outputDir = outputDir
 
                         // For up-to-date comparison:
                         inputs.file inputJarFile
