@@ -3,6 +3,7 @@ package ch.liquidmind.deflector.plugin.gradle
 import ch.liquidmind.deflector.Main
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.TaskAction
+import org.gradle.api.InvalidUserDataException
 
 public class DeflectTask extends DefaultTask {
     Main deflectorMain = new Main()
