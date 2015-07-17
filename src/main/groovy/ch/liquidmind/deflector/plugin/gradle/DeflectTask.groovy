@@ -12,10 +12,10 @@ public class DeflectTask extends DefaultTask {
     @TaskAction
     run() {
         if (options == null)
-            throw InvalidUserDataException("No nativeDeflectorOptions set for deflect task '${this.name}'.")
+            throw new InvalidUserDataException("No nativeDeflectorOptions set for deflect task '${this.name}'.")
 
         if (outputDir == null)
-            throw InvalidUserDataException("No output directory set for deflect task '${this.name}'.")
+            throw new InvalidUserDataException("No output directory set for deflect task '${this.name}'.")
 
         // Create folder structure
         outputDir.mkdirs()
